@@ -61,11 +61,30 @@ if /I "%o%" EQU "Y" goto :finaldone
 if /I "%o%" EQU "N" goto :soundy
 
 
+
 :finaldone
+@cd /d "%~dp0"
+( echo Set Sound = CreateObject("WMPlayer.OCX.7"^)
+  echo Sound.URL =%file3%
+  echo Sound.Controls.play
+  echo do while Sound.currentmedia.duration = 0
+  echo wscript.sleep 100
+  echo loop
+  echo wscript.sleep (int(Sound.currentmedia.duration^)+1^)*1000) >soundpass.vbs
+)
+
+( echo Set Sound = CreateObject("WMPlayer.OCX.7"^)
+  echo Sound.URL =%file4%
+  echo Sound.Controls.play
+  echo do while Sound.currentmedia.duration = 0
+  echo wscript.sleep 100
+  echo loop
+  echo wscript.sleep (int(Sound.currentmedia.duration^)+1^)*1000) >soundfail.vbs
+)
 echo Config Saved Successfully!
 timeout 2 >nul
 (
-echo %file1%_%file2%_%file3%_%file4%
+echo %file1%_%file2%
 )>config.sahi
 
 
@@ -94,14 +113,14 @@ color 70  & mode con:cols=80 lines=12
 color 70  & mode con:cols=100 lines=12
 cls
 :stopcome
-color 70  & mode con:cols=100 lines=14
+color 70  & mode con:cols=100 lines=15
 if /I "%passfail%" == "0" call :nochoice
 if /I "%passfail%" == "1" call :passchoice
 if /I "%passfail%" == "2" call :failchoice
 echo.
 call :setESC
 echo %ESC%[7mEnter Following As You Prefered%ESC%[0m
-echo.
+echo %ESC%.%ESC%[0m
 echo %ESC%[7mStart The Proxy            = S%ESC%[0m
 echo %ESC%[7mAdd A Proxy Server         = A%ESC%[0m
 echo %ESC%[7mCheck the Proxy            = C%ESC%[0m
@@ -109,9 +128,10 @@ echo %ESC%[7mCheck the Ping             = P%ESC%[0m
 echo %ESC%[7mRestart The Proxy          = R%ESC%[0m
 echo %ESC%[7mKill The Proxy             = K%ESC%[0m
 echo %ESC%[7mReset The Config File      = X%ESC%[0m
+echo %ESC%[7mReset The Sound effects    = XS%ESC%[0m
 echo %ESC%[7mExit The Script            = E%ESC%[0m
 echo.
-set /P c=         %ESC%[7mWhat Do You Want To Execute [S/A/C/P/R/K/E]?%ESC%[0m
+set /P c=         %ESC%[7mWhat Do You Want To Execute [S/A/C/P/R/K/X/XS/E]?%ESC%[0m
 if /I "%c%" EQU "S" goto :Start
 if /I "%c%" EQU "C" goto :check
 if /I "%c%" EQU "P" goto :ping
@@ -119,6 +139,7 @@ if /I "%c%" EQU "R" goto :Restart
 if /I "%c%" EQU "K" goto :Kill
 if /I "%c%" EQU "E" goto :Exit
 if /I "%c%" EQU "X" goto :reset
+if /I "%c%" EQU "XS" goto :soundy
 if /I "%c%" EQU "A" goto :add
 cls
 echo Try Again Using  [Start/Check/Ping/Restart/Kill/Exit]type = [S/R/C/P/K/E]
@@ -137,7 +158,7 @@ timeout 3 >nul
 :check
 Color 3F & MODE con:cols=80 lines=7
 cls
-Echo Cheking Proxy State..
+Echo Checking Proxy State..
 timeout 2 >nul
 :retry
 tasklist /FI "IMAGENAME eq Proxifier.exe" 2>NUL | find /I /N "Proxifier.exe">NUL
@@ -153,8 +174,10 @@ goto start
 
 :networkcheck
 set "pass=^|"
-C:
-FOR /F "tokens=* USEBACKQ" %%F IN (`httping.exe -count 3 -url https://github.com`) DO (
+if /I "%St%" == "0" set "count=3"
+if /I "%St%" == "1" set "count=5"
+if /I "%St%" == "2" set "count=3"
+FOR /F "tokens=* USEBACKQ" %%F IN (`httping.exe -count %count% -url https://github.com`) DO (
 SET var=%%F
 SET "new=All probes failed"
 )
@@ -218,7 +241,8 @@ if /I "%St%" == "2"  goto :stop
 TASKKILL /F /IM Proxifier.exe
 TASKKILL /F /IM v2rayN.exe
 call :startall
-echo Redirecting..
+cls
+echo Troubleshooting in progress..
 timeout 3 >nul
 SET /a "St+=1"
 goto retry
@@ -349,18 +373,13 @@ goto :check
 set /a "passfail=2"
 Color 4F & MODE con:cols=80 lines=10
 Echo All Debugging Attemps Failed! 
-Echo Try adding Refreshing a new server to your Proxy
-start "" "https://www.racevpn.com/free-vmesswebsocket-server"
-TASKKILL /F /IM Proxifier.exe
-Echo All Debugging Attemps Failed! 
-Echo Try adding Refreshing a new server to your Proxy
+Echo Try adding a new server to your Proxy
 call :soundfail
 timeout 5 >nul
 cls
-set /P o=  What Do You Add A Proxy Server (Y/N)?
-if /I "%o%" EQU "Y" goto :loopstart
-if /I "%o%" EQU "N" goto :stopcome
-goto :stopcome
+start "" "https://www.racevpn.com/free-vmesswebsocket-server"
+TASKKILL /F /IM Proxifier.exe
+goto :loopstart
 
 :Restart
 TASKKILL /F /IM Proxifier.exe
@@ -373,6 +392,7 @@ exit /B 0
 
 
 :startall
+@cd /d "%~dp0"
 for /f "tokens=1,2 delims=_" %%a in (config.sahi) do (
 start "" %%a
 start "" %%b
@@ -381,6 +401,7 @@ exit /B 0
 
 
 :startv
+@cd /d "%~dp0"
 for /f "tokens=1,2 delims=_" %%a in (config.sahi) do (
 start "" %%a
 )
@@ -389,35 +410,15 @@ exit /B 0
 
 :soundscucess
 @cd /d "%~dp0"
-for /f "tokens=1,2,3,4 delims=_" %%a in (config.sahi) do (
-set "file=%%c"
-( echo Set Sound = CreateObject("WMPlayer.OCX.7"^)
-  echo Sound.URL =%file%
-  echo Sound.Controls.play
-  echo do while Sound.currentmedia.duration = 0
-  echo wscript.sleep 100
-  echo loop
-  echo wscript.sleep (int(Sound.currentmedia.duration^)+1^)*1000) >soundpass.vbs
-)
 start /min soundpass.vbs
 exit /B 0
 
 :soundfail
 @cd /d "%~dp0"
-for /f "tokens=1,2,3,4 delims=_" %%a in (config.sahi) do (
-set "file=%%d"
-( echo Set Sound = CreateObject("WMPlayer.OCX.7"^)
-  echo Sound.URL = %file%
-  echo Sound.Controls.play
-  echo do while Sound.currentmedia.duration = 0
-  echo wscript.sleep 100
-  echo loop
-  echo wscript.sleep (int(Sound.currentmedia.duration^)+1^)*1000) >soundfail.vbs
-)
 start /min soundfail.vbs
 exit /B 0
 
-
+ 
 
 :reset
 cls
